@@ -11,7 +11,14 @@ dotenv.config()
 const app = express()
 const server = http.createServer(app)
 const io = socketIo(server)
-app.use(cors());
+app.use(cors({
+    origin: [
+        'https://calendario-fuerza-integral.vercel.app',  // URL de producción en Vercel
+        'http://localhost:3000'                           // Para desarrollo local
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],             // Métodos permitidos
+    credentials: true                                      // Para enviar cookies si es necesario
+}));
 
 app.use(express.json());
 
