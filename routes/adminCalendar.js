@@ -1,6 +1,7 @@
 const express = require('express');
 const cron = require('node-cron')
 const routerAdm = express.Router();
+const ModalContent = require('../models/ModalContent')
 const AdminCalendar = require('../models/AdminCalendar');
 const Calendar = require('../models/Calendar');
 
@@ -177,6 +178,27 @@ cron.schedule('0 15 * * 6', async () => {
         console.log('Calendario Reseteado con exito el sabado a las 15hs!')
     } catch (error) {
         console.error('Error al reiniciar el calendaro', error)
+    }
+})
+
+// FUNCION PARA EL MODAL DE NOVEDADES
+routerAdm.get('/api/get-modal-content', async ( req, res ) => {
+    try {
+        const modalContent = await ModalContent.findOne({})
+        res.json(modalContent)
+    } catch (error) {
+        res.status(500).send('Error al cargar el modal de novedades')
+    }
+})
+
+routerAdm.post('/api/save-modal-content', async ( req, res ) => {
+    const { title, subtitle, link, image, description } = req.body;
+
+    try {
+        await ModalContent.updateOne({}, { title, subtitle, link, image, description }, { upsert: true });
+        res.status(200).send('Contenido del modal cuardado correctamente');
+    } catch (error) {
+        res.status(500).send('Error al guardar el contenido del modal', error)
     }
 })
 

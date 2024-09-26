@@ -90,5 +90,3 @@ calendarSchema.set('toJSON', {
 
 const Calendar = mongoose.model('Calendar', calendarSchema);
 module.exports = Calendar
-
-module.exports = Calendar
