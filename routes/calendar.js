@@ -5,10 +5,12 @@ const Calendar = require('../models/Calendar');
 const initialCalendar = {
     lunes: {
         mañana: {
+            7: [null,null,null,null,null,null,null],
             8: ["isabel c","belu s","joaco m","hugo d","nanci g","javier r","miriam p"],
             9: ["valen o","lu s","ale p","beti f","mauri l",null],
             10: ["ro b","ailen m","facu a","omar b",null,null],
-            11: ["bruno",null,null,null,null,null]
+            11: ["bruno",null,null,null,null,null],
+            12: [null,null,null,null,null,null]
         },
         tarde: {
             16: ["jor p","dona r","irina r","mayra n","marian g","cuervo",null],

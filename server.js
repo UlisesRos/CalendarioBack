@@ -4,8 +4,13 @@ const socketIo = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors')
 const dotenv = require('dotenv');
+const authRoutes = require('./routes/authRoutes');
+const paymentRoutes = require('./routes/paymentRouter')
 const { initializeCalendar, router } = require('./routes/calendar');
 const { routerAdm, initializeAdminCalendar } = require('./routes/adminCalendar');
+const ingresoRouter = require('./routes/ingresoRouter')
+const historialMensualRouter = require('./routes/historialMensualRouter')
+const { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual } = require('./utils/cronJobs')
 dotenv.config()
 
 const app = express()
@@ -19,6 +24,13 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE'],             // Métodos permitidos
     credentials: true                                      // Para enviar cookies si es necesario
 }));
+
+// Ejecutando funcion el reinicio mensual
+ReinicioMensual()
+// Ejecutando funcion reinicio historial menusal
+ReinicioHistorialMensual()
+// Ejecutando funcion enviar recordatorio de pago
+enviarRecordatorioPagoMensual()
 
 app.use(express.json());
 
@@ -48,14 +60,26 @@ app.use((req, res, next) => {
     next();
 })
 
-// Ruta para verificar si el servidor esta en funcionamiento
-app.get('/', (req, res) => {
-    res.send('Servidor funcionando correctamente.')
-});
+// Ruta de Login y Register
+app.use('/api/auth', authRoutes);
 
 // Usar las rutas del calendario
 app.use(router);
 app.use(routerAdm)
+
+// Ruta de pagos
+app.use('/api/payments', paymentRoutes)
+
+// Ruta de ingreso
+app.use('/api', ingresoRouter)
+
+// Ruta de historial mensual
+app.use('/api', historialMensualRouter);
+
+// Ruta para verificar si el servidor esta en funcionamiento
+app.get('/', (req, res) => {
+    res.send('Servidor funcionando correctamente.')
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

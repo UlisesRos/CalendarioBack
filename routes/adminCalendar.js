@@ -3,7 +3,9 @@ const cron = require('node-cron')
 const routerAdm = express.Router();
 const ModalContent = require('../models/ModalContent')
 const AdminCalendar = require('../models/AdminCalendar');
+const User = require('../models/User')
 const Calendar = require('../models/Calendar');
+const isAdmin = require('../middleware/isAdmin')
 
 const initialAdminCalendar = {
     lunes: {
@@ -16,6 +18,8 @@ const initialAdminCalendar = {
             12: [null,null,null,null,null,null,null,null,null,null],
         },
         tarde: {
+            13: [null,null,null,null,null,null,null,null,null,null],
+            14: [null,null,null,null,null,null,null,null,null,null],
             15: [null,null,null,null,null,null,null,null,null,null],
             16: [null,null,null,null,null,null,null,null,null,null],
             17: [null,null,null,null,null,null,null,null,null,null],
@@ -34,6 +38,8 @@ const initialAdminCalendar = {
             12: [null,null,null,null,null,null,null,null,null,null],
         },
         tarde: {
+            13: [null,null,null,null,null,null,null,null,null,null],
+            14: [null,null,null,null,null,null,null,null,null,null],
             15: [null,null,null,null,null,null,null,null,null,null],
             16: [null,null,null,null,null,null,null,null,null,null],
             17: [null,null,null,null,null,null,null,null,null,null],
@@ -52,6 +58,8 @@ const initialAdminCalendar = {
             12: [null,null,null,null,null,null,null,null,null,null],
         },
         tarde: {
+            13: [null,null,null,null,null,null,null,null,null,null],
+            14: [null,null,null,null,null,null,null,null,null,null],
             15: [null,null,null,null,null,null,null,null,null,null],
             16: [null,null,null,null,null,null,null,null,null,null],
             17: [null,null,null,null,null,null,null,null,null,null],
@@ -70,6 +78,8 @@ const initialAdminCalendar = {
             12: [null,null,null,null,null,null,null,null,null,null],
         },
         tarde: {
+            13: [null,null,null,null,null,null,null,null,null,null],
+            14: [null,null,null,null,null,null,null,null,null,null],
             15: [null,null,null,null,null,null,null,null,null,null],
             16: [null,null,null,null,null,null,null,null,null,null],
             17: [null,null,null,null,null,null,null,null,null,null],
@@ -88,6 +98,8 @@ const initialAdminCalendar = {
             12: [null,null,null,null,null,null,null,null,null,null],
         },
         tarde: {
+            13: [null,null,null,null,null,null,null,null,null,null],
+            14: [null,null,null,null,null,null,null,null,null,null],
             15: [null,null,null,null,null,null,null,null,null,null],
             16: [null,null,null,null,null,null,null,null,null,null],
             17: [null,null,null,null,null,null,null,null,null,null],
@@ -106,7 +118,7 @@ const initialAdminCalendar = {
 }
 
 // Obtener el calendario completo
-routerAdm.get('/api/admincalendar', async ( req, res ) => {
+routerAdm.get('/api/admincalendar', isAdmin, async ( req, res ) => {
     try {
         const admincalendar = await AdminCalendar.findOne();
         res.json(admincalendar)
@@ -116,7 +128,7 @@ routerAdm.get('/api/admincalendar', async ( req, res ) => {
 });
 
 // Actualizar o crear un horario en el calendario
-routerAdm.put('/api/admincalendar', async ( req, res ) => {
+routerAdm.put('/api/admincalendar', isAdmin, async ( req, res ) => {
     const { day, shift, hour, updatedHour } = req.body;
     try {
         await AdminCalendar.updateOne({}, { $set: { [`${day}.${shift}.${hour}`]: updatedHour } });
@@ -129,7 +141,7 @@ routerAdm.put('/api/admincalendar', async ( req, res ) => {
 })
 
 // Eliminar un usuario del calendario
-routerAdm.put('/api/admincalendar/remove', async ( req, res ) => {
+routerAdm.put('/api/admincalendar/remove', isAdmin, async ( req, res ) => {
     const { day, shift, hour, index } = req.body;
     try {
         //traigo el calendario completo
@@ -161,7 +173,7 @@ routerAdm.put('/api/admincalendar/remove', async ( req, res ) => {
 })
 
 // Reiniciar el calendario
-routerAdm.put('/api/admincalendar/reset', async ( req, res ) => {
+routerAdm.put('/api/admincalendar/reset', isAdmin, async ( req, res ) => {
     try {
         const adminCalendar = await AdminCalendar.findOne()
         if (!adminCalendar) {
@@ -184,7 +196,9 @@ routerAdm.put('/api/admincalendar/reset', async ( req, res ) => {
 // Reiniciar el calendario cada sabado a las 15hs
 cron.schedule('0 15 * * 6', async () => {
     try {
+        const user = await User.find();
         const adminCalendar = await AdminCalendar.findOne()
+
         if (!adminCalendar) {
             return res.status(404).json({ message: 'Admin calendar not found' });
         }
@@ -196,13 +210,22 @@ cron.schedule('0 15 * * 6', async () => {
         // Sobrescribir el calendario con el valor inicial del adminCalendar
         await Calendar.updateOne({}, {$set: { ...adminCalendarData }})
         console.log('Calendario Reseteado con exito el sabado a las 15hs!')
+
+         // Restablecer los días de entrenamiento a su valor inicial
+        user.forEach(async (usuario) => {
+            const diasIniciales = usuario.diasentrenamiento;
+            usuario.diasrestantes = diasIniciales;
+            await usuario.save();
+        });
+
+        console.log("Días de entrenamiento restablecidos exitosamente.");
     } catch (error) {
-        console.error('Error al reiniciar el calendaro', error)
+        console.error('Error al reiniciar el calendaro / Error al restablecer los dias de entrenamiento', error)
     }
 })
 
 // FUNCION PARA EL MODAL DE NOVEDADES
-routerAdm.get('/api/get-modal-content', async ( req, res ) => {
+routerAdm.get('/api/get-modal-content', isAdmin, async ( req, res ) => {
     try {
         const modalContent = await ModalContent.findOne({})
         res.json(modalContent)
@@ -211,7 +234,7 @@ routerAdm.get('/api/get-modal-content', async ( req, res ) => {
     }
 })
 
-routerAdm.post('/api/save-modal-content', async ( req, res ) => {
+routerAdm.post('/api/save-modal-content', isAdmin, async ( req, res ) => {
     const { title, subtitle, link, image, description } = req.body;
 
     try {

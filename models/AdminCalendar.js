@@ -11,6 +11,8 @@ const adminCalendarSchema = new mongoose.Schema({
             12: [String],
         },
         tarde: {
+            13: [String],
+            14: [String],
             15: [String],
             16: [String],
             17: [String],
@@ -29,6 +31,8 @@ const adminCalendarSchema = new mongoose.Schema({
             12: [String],
         },
         tarde: {
+            13: [String],
+            14: [String],
             15: [String],
             16: [String],
             17: [String],
@@ -47,6 +51,8 @@ const adminCalendarSchema = new mongoose.Schema({
             12: [String],
         },
         tarde: {
+            13: [String],
+            14: [String],
             15: [String],
             16: [String],
             17: [String],
@@ -65,6 +71,8 @@ const adminCalendarSchema = new mongoose.Schema({
             12: [String],
         },
         tarde: {
+            13: [String],
+            14: [String],
             15: [String],
             16: [String],
             17: [String],
@@ -83,6 +91,8 @@ const adminCalendarSchema = new mongoose.Schema({
             12: [String],
         },
         tarde: {
+            13: [String],
+            14: [String],
             15: [String],
             16: [String],
             17: [String],
