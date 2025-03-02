@@ -82,9 +82,11 @@ const generateToken = (user) => {
 const login = async (req, res) => {
     const { useremail, userpassword } = req.body;
 
+    const usuario = useremail.toLowerCase();
+
     try {
         // Verificar si el usuario existe
-        const user = await User.findOne({ useremail });
+        const user = await User.findOne({ usuario });
         if (!user) {
             return res.status(400).json({ msg: 'Credenciales inválidas' });
         }
