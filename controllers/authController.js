@@ -86,7 +86,7 @@ const login = async (req, res) => {
 
     try {
         // Verificar si el usuario existe
-        const user = await User.findOne({ usuario });
+        const user = await User.findOne({ useremail: usuario });
         if (!user) {
             return res.status(400).json({ msg: 'Credenciales inválidas' });
         }
