@@ -8,10 +8,16 @@ const { sendEmail } = require('../utils/mailer');
 const register = async (req, res) => {
 
     const bodyLowerCase = Object.keys(req.body).reduce((acc, key) => {
-        acc[key] = typeof req.body[key] === 'string' ? req.body[key].toLowerCase() : req.body[key];
+        // Excluye 'userpassword' y 'userpasswordc' de la conversión a minúsculas
+        if (key !== 'userpassword' && key !== 'userpasswordc') {
+            acc[key] = typeof req.body[key] === 'string' ? req.body[key].toLowerCase() : req.body[key];
+        } else {
+            // Mantén el valor original para 'userpassword' y 'userpasswordc'
+            acc[key] = req.body[key];
+        }
         return acc;
     }, {});
-    
+
     const { username, userlastname, useremail, usertelefono, diasentrenamiento, userpassword, userpasswordc, documento, descuento } = bodyLowerCase;
 
     try {
