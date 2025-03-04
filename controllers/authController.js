@@ -6,7 +6,13 @@ const { sendEmail } = require('../utils/mailer');
 
 // Registro del Usuario Nuevo
 const register = async (req, res) => {
-    const { username, userlastname, useremail, usertelefono, diasentrenamiento, userpassword, userpasswordc, documento, descuento } = req.body;
+
+    const bodyLowerCase = Object.keys(req.body).reduce((acc, key) => {
+        acc[key] = typeof req.body[key] === 'string' ? req.body[key].toLowerCase() : req.body[key];
+        return acc;
+    }, {});
+    
+    const { username, userlastname, useremail, usertelefono, diasentrenamiento, userpassword, userpasswordc, documento, descuento } = bodyLowerCase;
 
     try {
 
