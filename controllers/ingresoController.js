@@ -1,12 +1,20 @@
 const User = require('../models/User');
 
+const DIA_INICIO_PAGO = 1;
+const DIA_FIN_PAGO = 10;
+
 const ingresoController = async (req, res) => {
     const { documento } = req.body;
 
+    // Validar que el documento esté presente
+    if (!documento) {
+        return res.status(400).json({ msg: 'El campo documento es requerido' });
+    }
+
     try {
         const currentDate = new Date();
-        const currentDay = currentDate.getDate(); // Extraemos el día del mes
-        const user = await User.findOne({ documento });
+        const currentDay = currentDate.getDate();
+        const user = await User.findOne({ documento }, 'username userlastname ultimoIngreso pago diasrestantes diasentrenamiento');
 
         if (!user) {
             return res.status(404).json({ msg: 'Usuario no encontrado' });
@@ -20,13 +28,13 @@ const ingresoController = async (req, res) => {
                     msg: 'Ya has ingresado hoy',
                     username: user.username,
                     userlastname: user.userlastname,
-                    yaIngresadoHoy: true // Nuevo campo para indicar que ya ingresó hoy
+                    yaIngresadoHoy: true
                 });
             }
         }
 
-        // Si estamos fuera del rango del 1 al 10, verifica si el cliente ha pagado
-        if (currentDay < 1 || currentDay > 10) {
+        // Verificar si el cliente ha pagado (fuera del rango del 1 al 10)
+        if (currentDay < DIA_INICIO_PAGO || currentDay > DIA_FIN_PAGO) {
             if (!user.pago) {
                 return res.status(400).json({
                     msg: 'El cliente no ha pagado',
@@ -36,9 +44,8 @@ const ingresoController = async (req, res) => {
             }
         }
 
-        const diasRestantes = user.diasrestantes;
-
-        if (diasRestantes <= 0) {
+        // Verificar días restantes
+        if (user.diasrestantes <= 0) {
             return res.status(400).json({
                 msg: 'El cliente no tiene días disponibles',
                 username: user.username,
@@ -57,7 +64,7 @@ const ingresoController = async (req, res) => {
             diasEntrenamiento: user.diasentrenamiento,
             username: user.username,
             userlastname: user.userlastname,
-            yaIngresadoHoy: false // Nuevo campo para indicar que no ha ingresado hoy
+            yaIngresadoHoy: false
         });
 
     } catch (error) {
@@ -65,4 +72,4 @@ const ingresoController = async (req, res) => {
     }
 }
 
-module.exports = ingresoController
+module.exports = ingresoController;
