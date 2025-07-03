@@ -1,7 +1,11 @@
 const cron = require('node-cron');
 const User = require('../models/User');
+const { format, isBefore, subMonths, parseISO } = require('date-fns');
+const { es } = require('date-fns/locale');
+const NutricionTurn = require('../models/NutricionTurn')
 const { guardarHistorialMensualAutomatico } = require('../controllers/historialMensualController');
 const enviarRecordatorioPago = require('./enviarRecordatorioPago');
+const { sendEmail } = require('../utils/mailer');
 
 const ReinicioMensual = () => {
 
@@ -22,6 +26,32 @@ const ReinicioMensual = () => {
         }
     });
 
+    cron.schedule('0 0 1 * *', async () => {
+        try {
+            const hoy = new Date();
+            const limite = subMonths(hoy, 2); // fecha 2 meses atrás
+
+            // Traer todos los turnos viejos
+            const turnosAntiguos = await NutricionTurn.find();
+
+            const turnosAEliminar = turnosAntiguos.filter(t =>
+            isBefore(parseISO(t.fecha), limite)
+            );
+
+            if (turnosAEliminar.length > 0) {
+                const bulkOps = turnosAEliminar.map(t => ({
+                    deleteOne: { filter: { fecha: t.fecha, hora: t.hora } }
+            }));
+
+            await NutricionTurn.bulkWrite(bulkOps);
+                console.log(`[LIMPIEZA] ${bulkOps.length} turnos eliminados automáticamente.`);
+            } else {
+                console.log('[LIMPIEZA] No hay turnos viejos para eliminar.');
+            }
+        } catch (err) {
+            console.error('[LIMPIEZA] Error al eliminar turnos viejos:', err);
+        }
+        });
 }
 
 const ReinicioHistorialMensual = () => {
@@ -60,4 +90,32 @@ const enviarRecordatorioPagoMensual = () => {
 
 };
 
-module.exports = { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual };
+const recordatorioTurnoNutricion = () => {
+    
+    // RECORDAR UN DIA ANTES EL TURNO DE NUTRICION
+    cron.schedule('0 8 * * *', async () => {
+    try {
+        const mañana = addDays(new Date(), 1);
+
+        const turnos = await NutricionTurn.find();
+        const turnosDeMañana = turnos.filter(t => {
+            const fechaTurno = parseISO(t.fecha);
+            return isSameDay(fechaTurno, mañana);
+        });
+
+        for (const t of turnosDeMañana) {
+            sendEmail(
+                t.usuario.email,
+                '⏰ Recordatorio de Turno de Nutrición',
+                `Hola ${t.usuario.nombre}, te recordamos que tenés un turno mañana ${format(parseISO(t.fecha), "EEEE d 'de' MMMM", { locale: es })} a las ${t.hora}.`
+            );
+        }
+
+        console.log(`[RECORDATORIO] ${turnosDeMañana.length} mails enviados.`);
+    } catch (err) {
+        console.error('Error enviando recordatorios:', err);
+    }
+});
+}
+
+module.exports = { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual, recordatorioTurnoNutricion };

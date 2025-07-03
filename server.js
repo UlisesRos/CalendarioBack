@@ -10,7 +10,8 @@ const { initializeCalendar, router } = require('./routes/calendar');
 const { routerAdm, initializeAdminCalendar } = require('./routes/adminCalendar');
 const ingresoRouter = require('./routes/ingresoRouter')
 const historialMensualRouter = require('./routes/historialMensualRouter')
-const { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual } = require('./utils/cronJobs')
+const nutricionRouter = require('./routes/nutricionRouter');    
+const { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual, recordatorioTurnoNutricion } = require('./utils/cronJobs')
 dotenv.config()
 
 const app = express()
@@ -18,8 +19,8 @@ const server = http.createServer(app)
 const io = socketIo(server)
 app.use(cors({
     origin: [
-        'https://calendario-fuerza-integral.vercel.app',  // URL de producción en Vercel
-        'http://localhost:3000'                           // Para desarrollo local
+        'https://calendario-fuerza-integral.vercel.app',          // Para producción
+        //'http://localhost:3000'                           // Para desarrollo local
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],             // Métodos permitidos
     credentials: true                                      // Para enviar cookies si es necesario
@@ -31,6 +32,8 @@ ReinicioMensual()
 ReinicioHistorialMensual()
 // Ejecutando funcion enviar recordatorio de pago
 enviarRecordatorioPagoMensual()
+// Ejecutando funcion para enviar recordatorio de nutricion
+recordatorioTurnoNutricion()
 
 app.use(express.json());
 
@@ -75,6 +78,9 @@ app.use('/api', ingresoRouter)
 
 // Ruta de historial mensual
 app.use('/api', historialMensualRouter);
+
+// Ruta de nutrición
+app.use('/api/nutricion', nutricionRouter);
 
 // Ruta para verificar si el servidor esta en funcionamiento
 app.get('/', (req, res) => {
