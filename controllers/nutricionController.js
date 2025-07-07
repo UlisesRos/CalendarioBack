@@ -47,7 +47,7 @@ const addNutricionTurn = async (req, res) => {
             return res.status(400).json({ message: 'Turno no disponible' });
         }
 
-        const dayName = new Date(fecha).toLocaleDateString('es-ES', { weekday: 'long' });
+        const dayName = format(parseISO(fecha), 'EEEE', { locale: es }).toLowerCase();
         let profe = '';
         if (dayName === 'martes' || dayName === 'miércoles') {
             profe = 'Julieta Martini';
@@ -63,8 +63,16 @@ const addNutricionTurn = async (req, res) => {
         const fechaFormateada = format(parseISO(fecha), "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
 
         // Enviar email de confirmación
-        const texto = `Hola ${usuario.nombre}, tu turno de Nutricion ha sido reservado para el ${fechaFormateada} a las ${hora}.`;
-        await sendEmail(usuario.email, 'Confirmación de turno de nutrición en Fuerza Base Integral', texto);
+        const textoUsuario = `Hola ${usuario.nombre}, tu turno de Nutricion ha sido reservado para el ${fechaFormateada} a las ${hora}.`;
+        await sendEmail(usuario.email, 'Confirmación de turno de nutrición en Fuerza Base Integral', textoUsuario);
+
+        if(profe === 'Julieta Martini'){
+            const textoJuli = `${usuario.nombre} reservo un turno para la fecha: ${fechaFormateada} a las ${hora}.`;
+            await sendEmail('julietamartini49@gmail.com', `Nuevo turno de Nutricion para ${profe}`, textoJuli)
+        } else if(profe === 'Florencia Bertaña'){
+            const textoFlor = `${usuario.nombre} reservo un turno para la fecha: ${fechaFormateada} a las ${hora}.`;
+            await sendEmail('florenciabertana@gmail.com', `Nuevo turno de Nutricion para ${profe}`, textoFlor)
+        }
 
         res.json({ message: 'Turno reservado con éxito' });
 
@@ -85,6 +93,14 @@ const deleteTurn = async (req, res) => {
         return res.status(404).json({ message: 'Turno no encontrado' });
         }
 
+        const dayName = format(parseISO(fecha), 'EEEE', { locale: es }).toLowerCase();
+        let profe = '';
+        if (dayName === 'martes' || dayName === 'miércoles') {
+            profe = 'Julieta Martini';
+        } else if (dayName === 'jueves') {
+            profe = 'Florencia Bertaña';
+        }
+
         // Eliminar el turno
         await NutricionTurn.deleteOne({ fecha, hora });
 
@@ -93,8 +109,16 @@ const deleteTurn = async (req, res) => {
 
         // Enviar email de cancelación al usuario
         const { nombre, email } = turno.usuario;
-        const texto = `Hola ${nombre}, lamentamos informarte que tu turno de Nutricion del día ${fechaFormateada} a las ${hora} ha sido cancelado por el administrador.`;
-        await sendEmail(email, 'Cancelación de turno de nutrición', texto);
+        const textoUsuario = `Hola ${nombre}, lamentamos informarte que tu turno de Nutricion del día ${fechaFormateada} a las ${hora} ha sido cancelado por el administrador.`;
+        await sendEmail(email, 'Cancelación de turno de nutrición', textoUsuario);
+
+        if(profe === 'Julieta Martini'){
+            const textoJuli = `${nombre} cancelo el turno de la fecha: ${fechaFormateada} a las ${hora}.`;
+            await sendEmail('julietamartini49@gmail.com', `Cancelacion de turno de Nutricion para ${profe}`, textoJuli)
+        } else if(profe === 'Florencia Bertaña'){
+            const textoFlor = `${nombre} cancelo el turno de la fecha: ${fechaFormateada} a las ${hora}.`;
+            await sendEmail('florenciabertana@gmail.com', `Cancelacion de turno de Nutricion para ${profe}`, textoFlor)
+        }
 
         res.status(200).json({ message: 'Turno cancelado correctamente' });
     } catch (err) {
