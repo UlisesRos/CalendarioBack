@@ -4,7 +4,7 @@ const { PRECIOS, DESCUENTO } = require('../utils/precios.js');
 
 // Guardar Historial Mensual
 const guardarHistorialMensual = async (req, res) => {
-    const { mes, importeIngresado, importeNoIngresado, cantidadClientes, clientesSinPagar } = req.body;
+    const { mes, importeIngresado, importeNoIngresado, cantidadClientes, clientesActivos, clientesSinPagar } = req.body;
 
     try {
         const nuevoHistorial = new HistorialMensual({
@@ -12,6 +12,7 @@ const guardarHistorialMensual = async (req, res) => {
             importeIngresado,
             importeNoIngresado,
             cantidadClientes,
+            clientesActivos,
             clientesSinPagar
         });
 
@@ -64,12 +65,16 @@ const guardarHistorialMensualAutomatico = async () => {
         let importeNoIngresado = 0;
         const clientesSinPagar = [];
 
+        // Calcular clientes activos
+        let pagaron = 0
+
         usuarios.forEach(user => {
             const monto = PRECIOS[user.diasentrenamiento] || 0;
             const montoConDescuento = user.descuento ? monto - monto * DESCUENTO : monto;
 
             if (user.pago) {
                 importeIngresado += montoConDescuento;
+                pagaron += 1
             } else {
                 importeNoIngresado += montoConDescuento;
                 clientesSinPagar.push({ nombre: user.username, apellido: user.userlastname });
@@ -77,6 +82,7 @@ const guardarHistorialMensualAutomatico = async () => {
         });
 
         const cantidadClientes = usuarios.length;
+        const clientesActivos = pagaron
 
         // Guardar el historial en la base de datos
         const nuevoHistorial = new HistorialMensual({
@@ -84,6 +90,7 @@ const guardarHistorialMensualAutomatico = async () => {
             importeIngresado,
             importeNoIngresado,
             cantidadClientes,
+            clientesActivos,
             clientesSinPagar
         });
 

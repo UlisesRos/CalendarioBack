@@ -164,7 +164,7 @@ const updateUser = async (req, res) => {
     try {
         const { id } = req.params;
         const user = await User.findById(id);
-        const { pago, fechaPago, metodopago, username, userlastname, usertelefono, diasentrenamiento } = req.body;
+        const { pago, fechaPago, metodopago, username, userlastname, usertelefono, diasentrenamiento, descuento } = req.body;
 
         // Editar los campos del usuario
         user.username = username || user.username;
@@ -172,6 +172,7 @@ const updateUser = async (req, res) => {
         user.usertelefono = usertelefono || user.usertelefono;
         user.diasentrenamiento = diasentrenamiento || user.diasentrenamiento;
         user.fechaPago = fechaPago || user.fechaPago;
+        user.descuento = descuento !== undefined ? descuento : user.descuento;
 
         // Si el pago es true, agregar o actualizar el historial de pagos
         if (pago) {
