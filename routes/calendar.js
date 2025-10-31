@@ -77,9 +77,10 @@ const initialCalendar = {
     },
     sábado: {
         mañana: {
-            930: ["yaz w","fatima d","dani r","flor p","licha r",null],
-            1030: ["lu s","marian m","eve v","sofia f",null,null],
-            1130: ["flor m",null,null,null,null,null,null]
+            9: [null,null,null,null,null,null,null,null,null,null],
+            10: [null,null,null,null,null,null,null,null,null,null],
+            11: [null,null,null,null,null,null,null,null,null,null],
+            12: [null,null,null,null,null,null,null,null,null,null],
         }
     }
 }

@@ -103,9 +103,10 @@ const calendarSchema = new mongoose.Schema({
     },
     sábado: {
         mañana: {
-            930: [String],
-            1030: [String],
-            1130: [String]
+            9: [String],
+            10: [String],
+            11: [String],
+            12: [String],
         }
     },
 }, { versionKey: false });
