@@ -17,10 +17,10 @@ const HistorialMensualSchema = new mongoose.Schema({
         type: Number,
         require: true
     },
-    clientesActivos: {
-        type: Number,
-        require: true
-    },
+    clientesActivos: [{
+        nombre: { type: String, required: true },
+        apellido: { type: String, required: true }
+    }],
     clientesSinPagar: [{
         nombre: { type: String, required: true },
         apellido: { type: String, required: true }

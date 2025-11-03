@@ -64,9 +64,7 @@ const guardarHistorialMensualAutomatico = async () => {
         let importeIngresado = 0;
         let importeNoIngresado = 0;
         const clientesSinPagar = [];
-
-        // Calcular clientes activos
-        let pagaron = 0
+        const clientesActivos = []; // Ahora será un array de objetos
 
         usuarios.forEach(user => {
             const monto = PRECIOS[user.diasentrenamiento] || 0;
@@ -74,15 +72,21 @@ const guardarHistorialMensualAutomatico = async () => {
 
             if (user.pago) {
                 importeIngresado += montoConDescuento;
-                pagaron += 1
+                // Agregar el cliente activo con nombre y apellido
+                clientesActivos.push({ 
+                    nombre: user.username, 
+                    apellido: user.userlastname 
+                });
             } else {
                 importeNoIngresado += montoConDescuento;
-                clientesSinPagar.push({ nombre: user.username, apellido: user.userlastname });
+                clientesSinPagar.push({ 
+                    nombre: user.username, 
+                    apellido: user.userlastname 
+                });
             }
         });
 
         const cantidadClientes = usuarios.length;
-        const clientesActivos = pagaron
 
         // Guardar el historial en la base de datos
         const nuevoHistorial = new HistorialMensual({
@@ -90,7 +94,7 @@ const guardarHistorialMensualAutomatico = async () => {
             importeIngresado,
             importeNoIngresado,
             cantidadClientes,
-            clientesActivos,
+            clientesActivos, // Ahora es un array de objetos
             clientesSinPagar
         });
 
