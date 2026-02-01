@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const User = require('../models/User');
-const { format, isBefore, subMonths, parseISO } = require('date-fns');
+const { format, isBefore, subMonths, parseISO, addDays, isSameDay } = require('date-fns');
 const { es } = require('date-fns/locale');
 const NutricionTurn = require('../models/NutricionTurn')
 const { guardarHistorialMensualAutomatico } = require('../controllers/historialMensualController');

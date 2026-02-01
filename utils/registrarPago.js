@@ -1,7 +1,14 @@
 const mongoose = require('mongoose');
 const User = require('../models/User');
 
+/**
+ * Registra un pago de un usuario con idempotencia
+ * Evita procesar el mismo pago dos veces si llega duplicado
+ */
 async function registrarPago(userId, monto, metodo) {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    
     try {
         // Verifica que el userId sea un ObjectId válido
         if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -9,7 +16,7 @@ async function registrarPago(userId, monto, metodo) {
         }
 
         // Busca al usuario en la base de datos
-        const usuario = await User.findById(userId);
+        const usuario = await User.findById(userId).session(session);
 
         // Si el usuario no existe, lanza un error
         if (!usuario) {
@@ -21,15 +28,28 @@ async function registrarPago(userId, monto, metodo) {
         const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
         const formattedDate = currentDate.toLocaleDateString('es-AR', options);
 
-        console.log('Usuario:', usuario);
-        console.log('Fecha de pago:', formattedDate);
-        console.log('Monto:', monto);
-        console.log('Método de pago:', metodo);
+        console.log('👤 Usuario:', usuario.username);
+        console.log('📅 Fecha de pago:', formattedDate);
+        console.log('💰 Monto:', monto);
+        console.log('🔧 Método de pago:', metodo);
+
+        // IDEMPOTENCIA: Verificar si ya existe un pago registrado hoy
+        const pagoDeHoy = usuario.historialPagos.find(p => {
+            const fechaPago = new Date(p.fecha);
+            return fechaPago.toDateString() === currentDate.toDateString();
+        });
+
+        if (pagoDeHoy) {
+            console.log('ℹ️ Ya existe un pago registrado hoy, evitando duplicado');
+            await session.abortTransaction();
+            session.endSession();
+            return usuario;
+        }
 
         // Actualiza los campos del usuario
-        usuario.fechaPago = formattedDate; // Actualiza la última fecha de pago
-        usuario.pago = true; // Marca el pago como realizado
-        usuario.metodopago = metodo; // Guarda el método de pago
+        usuario.fechaPago = formattedDate;
+        usuario.pago = true;
+        usuario.metodopago = metodo;
 
         // Agrega el pago al historial de pagos
         usuario.historialPagos.push({
@@ -39,11 +59,20 @@ async function registrarPago(userId, monto, metodo) {
         });
 
         // Guarda los cambios en la base de datos
-        await usuario.save();
-        console.log('Pago registrado con éxito');
+        const usuarioActualizado = await usuario.save({ session });
+        
+        await session.commitTransaction();
+        session.endSession();
+
+        console.log('✅ Pago registrado exitosamente');
+        return usuarioActualizado;
+
     } catch (error) {
-        console.error('Error registrando el pago:', error.message);
-        throw error; // Propaga el error para que la función que llama pueda manejarlo
+        await session.abortTransaction();
+        session.endSession();
+        
+        console.error('❌ Error registrando el pago:', error.message);
+        throw error;
     }
 }
 

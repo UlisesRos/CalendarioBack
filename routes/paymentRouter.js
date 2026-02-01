@@ -1,16 +1,23 @@
 const express = require('express')
 const { postPreference, registrarPagos, notificacionPago } = require('../controllers/paymentController');
-
+const authenticate = require('../middleware/authenticate');
 
 const router = express.Router();
 
-// Ruta de preferencia de pago
-router.post('/create_preference', postPreference);
+/**
+ * Rutas de Mercado Pago
+ */
 
-// Ruta de actualizacion de fecha de pago y envio de mail
-router.post('/registrarpago', registrarPagos)
+// Ruta para crear una preferencia de pago (requiere autenticación)
+// El usuario envía sus datos y se crea el link de pago
+router.post('/create_preference', authenticate, postPreference);
 
-// Ruta para manejar la notificacion de pago
-router.post('/notificacion', notificacionPago)
+// Ruta para registrar un pago después de la redirección (requiere autenticación)
+// Se llama cuando el usuario regresa desde Mercado Pago
+router.post('/registrarpago', authenticate, registrarPagos);
+
+// Webhook de Mercado Pago (NO requiere autenticación porque MP lo llama directamente)
+// Mercado Pago notifica automáticamente al backend cuando hay un pago confirmado
+router.post('/webhook', notificacionPago);
 
 module.exports = router
