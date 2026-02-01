@@ -12,9 +12,9 @@ const router = express.Router();
 // El usuario envía sus datos y se crea el link de pago
 router.post('/create_preference', authenticate, postPreference);
 
-// Ruta para registrar un pago después de la redirección (requiere autenticación)
-// Se llama cuando el usuario regresa desde Mercado Pago
-router.post('/registrarpago', authenticate, registrarPagos);
+// Ruta para registrar un pago después de la redirección (NO requiere autenticación)
+// Se llama cuando el usuario regresa desde Mercado Pago y los datos vienen en la URL
+router.post('/registrarpago', registrarPagos);
 
 // Webhook de Mercado Pago (NO requiere autenticación porque MP lo llama directamente)
 // Mercado Pago notifica automáticamente al backend cuando hay un pago confirmado
