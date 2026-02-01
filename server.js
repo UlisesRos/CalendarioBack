@@ -19,8 +19,8 @@ const server = http.createServer(app)
 const io = socketIo(server)
 app.use(cors({
     origin: [
-        'https://calendario-fuerza-integral.vercel.app',          // Para producción
-        //'http://localhost:3000'                           // Para desarrollo local
+        //'https://calendario-fuerza-integral.vercel.app',          // Para producción
+        'http://localhost:3000'                           // Para desarrollo local
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],             // Métodos permitidos
     credentials: true                                      // Para enviar cookies si es necesario
