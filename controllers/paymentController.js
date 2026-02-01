@@ -73,22 +73,28 @@ const postPreference = async (req, res) => {
 const registrarPagos = async (req, res) => {
     const { userId, monto, metodo } = req.body;
 
+    console.log('� ENTRADA EN registrarPagos');
     console.log('📝 Datos recibidos para registro de pago:', { userId, monto, metodo });
+    console.log('📋 Body completo:', req.body);
 
     try {
         // Verifica que los datos necesarios estén presentes
         if (!userId || !monto || !metodo) {
-            return res.status(400).json({ error: 'Faltan datos necesarios (userId, monto, metodo)' });
+            console.error('❌ Faltan datos:', { userId: !!userId, monto: !!monto, metodo: !!metodo });
+            return res.status(400).json({ error: 'Faltan datos necesarios (userId, monto, metodo)', received: { userId, monto, metodo } });
         }
 
         // Validar que monto sea un número positivo
         if (typeof monto !== 'number' || monto <= 0) {
-            return res.status(400).json({ error: 'El monto debe ser un número positivo' });
+            console.error('❌ Monto inválido:', { tipo: typeof monto, valor: monto });
+            return res.status(400).json({ error: 'El monto debe ser un número positivo', receivedType: typeof monto });
         }
 
+        console.log('✅ Datos validados, llamando a registrarPago...');
         // Llama a la función registrarPago para registrar el pago
         const resultado = await registrarPago(userId, monto, metodo);
 
+        console.log('✅ Pago registrado con éxito en BD');
         // Si todo va bien, envía una respuesta exitosa
         res.status(200).json({ 
             msg: 'Pago registrado con éxito',
@@ -96,6 +102,7 @@ const registrarPagos = async (req, res) => {
         });
     } catch (error) {
         console.error('❌ Error en registrarPagos:', error.message);
+        console.error('Stack:', error.stack);
         res.status(500).json({ error: error.message });
     }
 };
