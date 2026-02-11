@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@getbrevo/brevo": "^3.0.1",
     "bcryptjs": "^2.4.3",
     "client": "^0.0.1",
     "cors": "^2.8.5",
