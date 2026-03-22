@@ -10,7 +10,8 @@ const { initializeCalendar, router } = require('./routes/calendar');
 const { routerAdm, initializeAdminCalendar } = require('./routes/adminCalendar');
 const ingresoRouter = require('./routes/ingresoRouter')
 const historialMensualRouter = require('./routes/historialMensualRouter')
-const nutricionRouter = require('./routes/nutricionRouter');    
+const nutricionRouter = require('./routes/nutricionRouter');
+const configRouter = require('./routes/configRouter');
 const { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual, recordatorioTurnoNutricion } = require('./utils/cronJobs')
 dotenv.config()
 
@@ -42,13 +43,13 @@ mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
-.then(async () => {
-    console.log('MongoDB conectado')
+    .then(async () => {
+        console.log('MongoDB conectado')
 
-    await initializeCalendar();
-    await initializeAdminCalendar();
-})
-.catch((error) => console.error(error));
+        await initializeCalendar();
+        await initializeAdminCalendar();
+    })
+    .catch((error) => console.error(error));
 
 io.on('connection', (socket) => {
     console.log('Nuevo cliente conectado');
@@ -81,6 +82,9 @@ app.use('/api', historialMensualRouter);
 
 // Ruta de nutrición
 app.use('/api/nutricion', nutricionRouter);
+
+// Ruta de configuración de precios
+app.use('/api', configRouter);
 
 // Ruta para verificar si el servidor esta en funcionamiento
 app.get('/', (req, res) => {

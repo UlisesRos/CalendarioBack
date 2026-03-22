@@ -1,115 +1,33 @@
 const mongoose = require('mongoose');
 
+// Se usa Schema.Types.Mixed para que los turnos (mañana/tarde) acepten
+// cualquier clave de hora dinámica (no solo las predefinidas).
 const adminCalendarSchema = new mongoose.Schema({
     lunes: {
-        mañana: {
-            7: [String],
-            8: [String],
-            9: [String],
-            10: [String],
-            11: [String],
-            12: [String],
-        },
-        tarde: {
-            13: [String],
-            14: [String],
-            15: [String],
-            16: [String],
-            17: [String],
-            18: [String],
-            19: [String],
-            20: [String],
-        }
+        mañana: { type: mongoose.Schema.Types.Mixed, default: {} },
+        tarde:  { type: mongoose.Schema.Types.Mixed, default: {} },
     },
     martes: {
-        mañana: {
-            7: [String],
-            8: [String],
-            9: [String],
-            10: [String],
-            11: [String],
-            12: [String],
-        },
-        tarde: {
-            13: [String],
-            14: [String],
-            15: [String],
-            16: [String],
-            17: [String],
-            18: [String],
-            19: [String],
-            20: [String],
-        }
+        mañana: { type: mongoose.Schema.Types.Mixed, default: {} },
+        tarde:  { type: mongoose.Schema.Types.Mixed, default: {} },
     },
     miércoles: {
-        mañana: {
-            7: [String],
-            8: [String],
-            9: [String],
-            10: [String],
-            11: [String],
-            12: [String],
-        },
-        tarde: {
-            13: [String],
-            14: [String],
-            15: [String],
-            16: [String],
-            17: [String],
-            18: [String],
-            19: [String],
-            20: [String],
-        }
+        mañana: { type: mongoose.Schema.Types.Mixed, default: {} },
+        tarde:  { type: mongoose.Schema.Types.Mixed, default: {} },
     },
     jueves: {
-        mañana: {
-            7: [String],
-            8: [String],
-            9: [String],
-            10: [String],
-            11: [String],
-            12: [String],
-        },
-        tarde: {
-            13: [String],
-            14: [String],
-            15: [String],
-            16: [String],
-            17: [String],
-            18: [String],
-            19: [String],
-            20: [String],
-        }
+        mañana: { type: mongoose.Schema.Types.Mixed, default: {} },
+        tarde:  { type: mongoose.Schema.Types.Mixed, default: {} },
     },
     viernes: {
-        mañana: {
-            7: [String],
-            8: [String],
-            9: [String],
-            10: [String],
-            11: [String],
-            12: [String],
-        },
-        tarde: {
-            13: [String],
-            14: [String],
-            15: [String],
-            16: [String],
-            17: [String],
-            18: [String],
-            19: [String],
-            20: [String],
-        }
+        mañana: { type: mongoose.Schema.Types.Mixed, default: {} },
+        tarde:  { type: mongoose.Schema.Types.Mixed, default: {} },
     },
     sábado: {
-        mañana: {
-            9: [String],
-            10: [String],
-            11: [String],
-            12: [String],
-        }
+        mañana: { type: mongoose.Schema.Types.Mixed, default: {} },
+        tarde:  { type: mongoose.Schema.Types.Mixed, default: {} },
     },
-}, { versionKey: false });
+}, { strict: false, versionKey: false });
 
 adminCalendarSchema.set('toJSON', {
     transform: (doc, ret) => {
