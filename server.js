@@ -10,9 +10,8 @@ const { initializeCalendar, router } = require('./routes/calendar');
 const { routerAdm, initializeAdminCalendar } = require('./routes/adminCalendar');
 const ingresoRouter = require('./routes/ingresoRouter')
 const historialMensualRouter = require('./routes/historialMensualRouter')
-const nutricionRouter = require('./routes/nutricionRouter');
 const configRouter = require('./routes/configRouter');
-const { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual, recordatorioTurnoNutricion } = require('./utils/cronJobs')
+const { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual } = require('./utils/cronJobs')
 dotenv.config()
 
 const app = express()
@@ -33,8 +32,6 @@ ReinicioMensual()
 ReinicioHistorialMensual()
 // Ejecutando funcion enviar recordatorio de pago
 enviarRecordatorioPagoMensual()
-// Ejecutando funcion para enviar recordatorio de nutricion
-recordatorioTurnoNutricion()
 
 app.use(express.json());
 
@@ -79,9 +76,6 @@ app.use('/api', ingresoRouter)
 
 // Ruta de historial mensual
 app.use('/api', historialMensualRouter);
-
-// Ruta de nutrición
-app.use('/api/nutricion', nutricionRouter);
 
 // Ruta de configuración de precios
 app.use('/api', configRouter);
