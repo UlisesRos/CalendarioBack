@@ -250,7 +250,7 @@ const forgotPassword = async (req, res) => {
         const resetUrl = `https://calendario-fuerza-integral.vercel.app/resetpasswordform?token=${resetToken}`;
         const emailText = `Para restablecer tu contraseña, haz clic en el siguiente enlace: ${resetUrl}`;
 
-        sendEmail(user.useremail, 'Restablecer Contraseña', emailText);
+        await sendEmail(user.useremail, 'Restablecer Contraseña', emailText);
 
         res.status(200).json({ msg: 'Se ha enviado un correo electrónico con instrucciones para restablecer tu contraseña.' });
     } catch (error) {
@@ -308,4 +308,15 @@ const resetPassword = async (req, res) => {
     }
 };
 
-module.exports = { login, register, getUser, getUsers, deleteUser, updateUser, forgotPassword, resetPassword };
+// Marcar formulario FBI como completado (autodeclaración)
+const updateFormularioFBI = async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.user._id, { formularioFBICompletado: true });
+        res.json({ ok: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ msg: 'Error al actualizar el formulario' });
+    }
+};
+
+module.exports = { login, register, getUser, getUsers, deleteUser, updateUser, forgotPassword, resetPassword, updateFormularioFBI };

@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login, getUser, getUsers, deleteUser, updateUser, forgotPassword, resetPassword } = require('../controllers/authController')
+const { register, login, getUser, getUsers, deleteUser, updateUser, forgotPassword, resetPassword, updateFormularioFBI } = require('../controllers/authController')
 const authenticate = require('../middleware/authenticate');
 
 const router = express.Router()
@@ -22,6 +22,9 @@ router.delete('/userdelete/:id', deleteUser)
 
 // Actualizar usuario
 router.put('/userupdate/:id', updateUser)
+
+// Marcar formulario FBI como completado
+router.patch('/formulario-fbi', authenticate, updateFormularioFBI);
 
 // Restablecer contraseña
 router.post('/forgot-password', forgotPassword);

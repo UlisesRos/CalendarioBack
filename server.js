@@ -22,7 +22,7 @@ app.use(cors({
         'https://calendario-fuerza-integral.vercel.app',          // Para producción
         //'http://localhost:3000'                           // Para desarrollo local
     ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],             // Métodos permitidos
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],     // Métodos permitidos
     credentials: true                                      // Para enviar cookies si es necesario
 }));
 
