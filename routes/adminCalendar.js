@@ -3,6 +3,7 @@ const cron = require('node-cron')
 const routerAdm = express.Router();
 const ModalContent = require('../models/ModalContent')
 const AdminCalendar = require('../models/AdminCalendar');
+const ClosedSchedule = require('../models/ClosedSchedule');
 const User = require('../models/User')
 const Calendar = require('../models/Calendar');
 const isAdmin = require('../middleware/isAdmin')
@@ -226,10 +227,10 @@ cron.schedule('0 15 * * 6', async () => {
 })
 
 // FUNCION PARA EL MODAL DE NOVEDADES
-routerAdm.get('/api/get-modal-content', isAdmin, async ( req, res ) => {
+routerAdm.get('/api/get-modal-content', async ( req, res ) => {
     try {
         const modalContent = await ModalContent.findOne({})
-        res.json(modalContent)
+        res.json(modalContent || {})
     } catch (error) {
         res.status(500).send('Error al cargar el modal de novedades')
     }
@@ -257,5 +258,114 @@ async function initializeAdminCalendar() {
         console.log('Initial AdminCalendar ya existe en MongoDB.');
     }
 }
+
+// =========================================
+// CLOSED SCHEDULES - DIAS/HORARIOS CERRADOS
+// =========================================
+
+// Obtener todos los cierres activos (Admin)
+routerAdm.get('/api/closed-schedules', isAdmin, async (req, res) => {
+    try {
+        const schedules = await ClosedSchedule.find().sort({ createdAt: -1 });
+        res.json(schedules);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Ruta pública para usuarios (sin auth) - Calendario del usuario
+routerAdm.get('/api/closed-schedules/public', async (req, res) => {
+    try {
+        const schedules = await ClosedSchedule.find();
+        res.json(schedules);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Crear un cierre (día completo o horas específicas)
+routerAdm.post('/api/closed-schedules', isAdmin, async (req, res) => {
+    const { day, closedDay, closedHours, reason } = req.body;
+    try {
+        // Si ya hay un cierre para ese día, lo actualizamos
+        const existing = await ClosedSchedule.findOne({ day });
+        if (existing) {
+            existing.closedDay = closedDay ?? existing.closedDay;
+            existing.closedHours = closedHours ?? existing.closedHours;
+            existing.reason = reason ?? existing.reason;
+            existing.createdAt = new Date();
+            await existing.save();
+            return res.status(200).json({ message: 'Cierre actualizado correctamente', data: existing });
+        }
+        const newClosure = new ClosedSchedule({ day, closedDay, closedHours, reason });
+        await newClosure.save();
+        res.status(201).json({ message: 'Cierre creado correctamente', data: newClosure });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Eliminar un cierre (reabrir día u horario)
+routerAdm.delete('/api/closed-schedules/:id', isAdmin, async (req, res) => {
+    try {
+        const deleted = await ClosedSchedule.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ error: 'Cierre no encontrado' });
+        res.status(200).json({ message: 'Cierre eliminado. Horario reabierto.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==========================================
+// GESTIÓN DE HORARIOS PERMANENTES
+// ==========================================
+
+// Agregar una hora permanentemente al AdminCalendar (y al Calendar actual)
+routerAdm.post('/api/schedule/add-hour', isAdmin, async (req, res) => {
+    const { day, shift, hour } = req.body;
+    const hourKey = `${day}.${shift}.${hour}`;
+    const slots = [null, null, null, null, null, null, null, null, null, null]; // 10 slots por defecto
+
+    try {
+        // Usamos lean() para obtener el documento como JS plano (sin filtro del schema)
+        const adminCal = await AdminCalendar.findOne().lean();
+        if (!adminCal) return res.status(404).json({ error: 'AdminCalendar no existe' });
+
+        // Verificar que no exista ya la hora
+        const alreadyExists = adminCal[day]?.[shift]?.[hour] !== undefined;
+        if (alreadyExists) {
+            return res.status(400).json({ error: `La hora ${hour}:00 ya existe en ${day} - ${shift}` });
+        }
+
+        // Guardamos usando updateOne con $set — funciona directo sobre MongoDB sin filtros de schema
+        await AdminCalendar.collection.updateOne(
+            { _id: adminCal._id },
+            { $set: { [hourKey]: slots } }
+        );
+        await Calendar.collection.updateOne(
+            {},
+            { $set: { [hourKey]: slots } }
+        );
+
+        res.status(200).json({ message: `Hora ${hour}:00 agregada a ${day} - ${shift}` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Eliminar una hora permanentemente del AdminCalendar (y del Calendar actual)
+routerAdm.delete('/api/schedule/remove-hour', isAdmin, async (req, res) => {
+    const { day, shift, hour } = req.body;
+    const hourKey = `${day}.${shift}.${hour}`;
+
+    try {
+        await AdminCalendar.updateOne({}, { $unset: { [hourKey]: '' } });
+        await Calendar.updateOne({}, { $unset: { [hourKey]: '' } });
+
+        res.status(200).json({ message: `Hora ${hour}:00 eliminada de ${day} - ${shift}` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 module.exports = { routerAdm, initializeAdminCalendar };

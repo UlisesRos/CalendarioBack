@@ -10,8 +10,8 @@ const { initializeCalendar, router } = require('./routes/calendar');
 const { routerAdm, initializeAdminCalendar } = require('./routes/adminCalendar');
 const ingresoRouter = require('./routes/ingresoRouter')
 const historialMensualRouter = require('./routes/historialMensualRouter')
-const nutricionRouter = require('./routes/nutricionRouter');    
-const { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual, recordatorioTurnoNutricion } = require('./utils/cronJobs')
+const configRouter = require('./routes/configRouter');
+const { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual } = require('./utils/cronJobs')
 dotenv.config()
 
 const app = express()
@@ -22,7 +22,7 @@ app.use(cors({
         'https://calendario-fuerza-integral.vercel.app',          // Para producción
         //'http://localhost:3000'                           // Para desarrollo local
     ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],             // Métodos permitidos
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],     // Métodos permitidos
     credentials: true                                      // Para enviar cookies si es necesario
 }));
 
@@ -32,8 +32,6 @@ ReinicioMensual()
 ReinicioHistorialMensual()
 // Ejecutando funcion enviar recordatorio de pago
 enviarRecordatorioPagoMensual()
-// Ejecutando funcion para enviar recordatorio de nutricion
-recordatorioTurnoNutricion()
 
 app.use(express.json());
 
@@ -42,13 +40,13 @@ mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
-.then(async () => {
-    console.log('MongoDB conectado')
+    .then(async () => {
+        console.log('MongoDB conectado')
 
-    await initializeCalendar();
-    await initializeAdminCalendar();
-})
-.catch((error) => console.error(error));
+        await initializeCalendar();
+        await initializeAdminCalendar();
+    })
+    .catch((error) => console.error(error));
 
 io.on('connection', (socket) => {
     console.log('Nuevo cliente conectado');
@@ -79,8 +77,8 @@ app.use('/api', ingresoRouter)
 // Ruta de historial mensual
 app.use('/api', historialMensualRouter);
 
-// Ruta de nutrición
-app.use('/api/nutricion', nutricionRouter);
+// Ruta de configuración de precios
+app.use('/api', configRouter);
 
 // Ruta para verificar si el servidor esta en funcionamiento
 app.get('/', (req, res) => {
