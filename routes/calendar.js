@@ -79,10 +79,10 @@ const initialCalendar = {
     },
     sábado: {
         mañana: {
-            9: [null,null,null,null,null,null,null,null,null,null],
-            10: [null,null,null,null,null,null,null,null,null,null],
-            11: [null,null,null,null,null,null,null,null,null,null],
-            12: [null,null,null,null,null,null,null,null,null,null],
+            9: [null,null,null,null,null,null,null,null],
+            10: [null,null,null,null,null,null,null,null],
+            11: [null,null,null,null,null,null,null,null],
+            12: [null,null,null,null,null,null,null,null],
         }
     }
 }
