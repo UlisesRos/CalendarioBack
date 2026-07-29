@@ -81,6 +81,12 @@ const UserSchema = new mongoose.Schema({
     formularioFBICompletado: {
         type: Boolean,
         default: false
+    },
+    resetPasswordToken: {
+        type: String
+    },
+    resetPasswordExpires: {
+        type: Date
     }
 },
 {
