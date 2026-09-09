@@ -3,6 +3,7 @@ const router = express.Router();
 const Calendar = require('../models/Calendar');
 const authenticate = require('../middleware/authenticate');
 const checkPaymentRestriction = require('../middleware/checkPaymentRestriction');
+const checkScheduleRestriction = require('../middleware/checkScheduleRestriction');
 
 const initialCalendar = {
     lunes: {
@@ -98,7 +99,7 @@ router.get('/api/calendar', async ( req, res ) => {
 });
 
 // Actualizar o crear un horario en el calendario (inscribir alumno)
-router.put('/api/calendar', authenticate, checkPaymentRestriction, async ( req, res ) => {
+router.put('/api/calendar', authenticate, checkPaymentRestriction, checkScheduleRestriction, async ( req, res ) => {
     const { day, shift, hour, updatedHour } = req.body;
     try {
         await Calendar.updateOne({}, { $set: { [`${day}.${shift}.${hour}`]: updatedHour } });

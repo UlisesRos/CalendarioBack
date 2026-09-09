@@ -308,15 +308,4 @@ const resetPassword = async (req, res) => {
     }
 };
 
-// Marcar formulario FBI como completado (autodeclaración)
-const updateFormularioFBI = async (req, res) => {
-    try {
-        await User.findByIdAndUpdate(req.user._id, { formularioFBICompletado: true });
-        res.json({ ok: true });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ msg: 'Error al actualizar el formulario' });
-    }
-};
-
-module.exports = { login, register, getUser, getUsers, deleteUser, updateUser, forgotPassword, resetPassword, updateFormularioFBI };
+module.exports = { login, register, getUser, getUsers, deleteUser, updateUser, forgotPassword, resetPassword };

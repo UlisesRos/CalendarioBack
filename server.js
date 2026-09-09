@@ -11,6 +11,7 @@ const { routerAdm, initializeAdminCalendar } = require('./routes/adminCalendar')
 const ingresoRouter = require('./routes/ingresoRouter')
 const historialMensualRouter = require('./routes/historialMensualRouter')
 const configRouter = require('./routes/configRouter');
+const { routerRestricciones } = require('./routes/scheduleRestrictions');
 const { ReinicioMensual, ReinicioHistorialMensual, enviarRecordatorioPagoMensual } = require('./utils/cronJobs')
 dotenv.config()
 
@@ -79,6 +80,9 @@ app.use('/api', historialMensualRouter);
 
 // Ruta de configuración de precios
 app.use('/api', configRouter);
+
+// Ruta de restricciones de horarios por usuario
+app.use(routerRestricciones);
 
 // Ruta para verificar si el servidor esta en funcionamiento
 app.get('/', (req, res) => {
