@@ -77,7 +77,11 @@ const UserSchema = new mongoose.Schema({
                 default: 'MP'
             }
         }
-    ]
+    ],
+    formularioFBICompletado: {
+        type: Boolean,
+        default: false
+    }
 },
 {
     timestamps: {
