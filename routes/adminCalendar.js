@@ -7,6 +7,7 @@ const ClosedSchedule = require('../models/ClosedSchedule');
 const User = require('../models/User')
 const Calendar = require('../models/Calendar');
 const isAdmin = require('../middleware/isAdmin')
+const { limpiarReservas, validarHorario } = require('../utils/reservas')
 
 const initialAdminCalendar = {
     lunes: {
@@ -188,6 +189,8 @@ routerAdm.put('/api/admincalendar/reset', isAdmin, async ( req, res ) => {
 
         // Sobrescribir el calendario con el valor inicial del adminCalendar
         await Calendar.updateOne({}, {$set: { ...adminCalendarData }})
+        // Las listas de reserva corresponden a la semana que se reinicia
+        await limpiarReservas()
         res.status(200).send('Calendario Reseteado con exito!')
     } catch (error) {
         console.error(error);
@@ -211,6 +214,8 @@ cron.schedule('0 15 * * 6', async () => {
 
         // Sobrescribir el calendario con el valor inicial del adminCalendar
         await Calendar.updateOne({}, {$set: { ...adminCalendarData }})
+        // Las listas de reserva corresponden a la semana que se reinicia
+        await limpiarReservas()
         console.log('Calendario Reseteado con exito el sabado a las 15hs!')
 
          // Restablecer los días de entrenamiento a su valor inicial
@@ -361,6 +366,13 @@ routerAdm.delete('/api/schedule/remove-hour', isAdmin, async (req, res) => {
     try {
         await AdminCalendar.updateOne({}, { $unset: { [hourKey]: '' } });
         await Calendar.updateOne({}, { $unset: { [hourKey]: '' } });
+
+        // La hora ya no existe: su lista de reserva tampoco
+        try {
+            await limpiarReservas(validarHorario(day, shift, hour));
+        } catch (error) {
+            console.error('No se pudieron limpiar las reservas de la hora eliminada:', error.message);
+        }
 
         res.status(200).json({ message: `Hora ${hour}:00 eliminada de ${day} - ${shift}` });
     } catch (error) {

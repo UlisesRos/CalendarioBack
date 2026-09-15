@@ -4,6 +4,15 @@ const Calendar = require('../models/Calendar');
 const authenticate = require('../middleware/authenticate');
 const checkPaymentRestriction = require('../middleware/checkPaymentRestriction');
 const checkScheduleRestriction = require('../middleware/checkScheduleRestriction');
+const {
+    MAX_RESERVAS,
+    CalendarError,
+    listarTodasLasReservas,
+    obtenerEstadoHorario,
+    inscribirUsuario,
+    quitarDelHorario,
+    quitarReserva,
+} = require('../utils/reservas');
 
 const initialCalendar = {
     lunes: {
@@ -88,6 +97,25 @@ const initialCalendar = {
     }
 }
 
+// Respuesta de error uniforme. Si el error corresponde a un horario, se adjunta
+// su estado actual para que el frontend se sincronice sin recargar todo.
+const responderError = async (res, error, contexto) => {
+    if (error instanceof CalendarError) {
+        let estadoHorario = {};
+        if (error.slot) {
+            try {
+                estadoHorario = await obtenerEstadoHorario(error.slot);
+            } catch {
+                // Sin estado: el frontend vuelve a pedir el calendario completo
+            }
+        }
+        return res.status(error.status).json({ code: error.code, msg: error.message, ...error.extra, ...estadoHorario });
+    }
+
+    console.error(contexto, error);
+    return res.status(500).json({ error: error.message, msg: 'Ocurrió un error inesperado. Intentá de nuevo.' });
+};
+
 // Obtener el calendario completo
 router.get('/api/calendar', async ( req, res ) => {
     try {
@@ -98,48 +126,73 @@ router.get('/api/calendar', async ( req, res ) => {
     }
 });
 
-// Actualizar o crear un horario en el calendario (inscribir alumno)
-router.put('/api/calendar', authenticate, checkPaymentRestriction, checkScheduleRestriction, async ( req, res ) => {
-    const { day, shift, hour, updatedHour } = req.body;
+// Obtener todas las listas de reserva: { "lunes.mañana.10": [{ id, nombre }] }
+router.get('/api/calendar/reservas', async ( req, res ) => {
     try {
-        await Calendar.updateOne({}, { $set: { [`${day}.${shift}.${hour}`]: updatedHour } });
-        res.status(200).send('Calendar updated');
+        const reservas = await listarTodasLasReservas();
+        res.json({ maxReservas: MAX_RESERVAS, reservas });
+    } catch (error) {
+        responderError(res, error, 'Error listando las reservas:');
+    }
+});
 
-    } catch (err) {
-        console.error(err)
-        res.status(500).json({ error: err.message })
+// Inscribir al usuario logueado en un horario.
+// Si está completo y el usuario lo aceptó (aceptaReserva: true) queda en la lista de reserva.
+router.put('/api/calendar', authenticate, checkPaymentRestriction, checkScheduleRestriction, async ( req, res ) => {
+    const { day, shift, hour, aceptaReserva } = req.body || {};
+    try {
+        const resultado = await inscribirUsuario({
+            usuario: req.user,
+            day,
+            shift,
+            hour,
+            aceptaReserva: aceptaReserva === true,
+        });
+        const estadoHorario = await obtenerEstadoHorario(resultado.slot);
+
+        res.status(200).json({
+            estado: resultado.estado,
+            posicion: resultado.posicion,
+            maxReservas: MAX_RESERVAS,
+            ...estadoHorario,
+        });
+    } catch (error) {
+        responderError(res, error, 'Error inscribiendo en el calendario:');
     }
 })
 
-// Eliminar un usuario del calendario (sin restricción de pago — pueden cancelar aunque adeuden)
+// Quitar a una persona de un horario (sin restricción de pago — pueden cancelar aunque adeuden).
+// El usuario sólo puede quitarse a sí mismo; el admin puede quitar a cualquiera.
+// Si había reservas, entra automáticamente la primera y se le avisa por mail.
 router.put('/api/calendar/remove', authenticate, async ( req, res ) => {
-    const { day, shift, hour, index } = req.body;
+    const { day, shift, hour, index, nombre } = req.body || {};
     try {
-        //traigo el calendario completo
-        const calendar = await Calendar.findOne();
+        const resultado = await quitarDelHorario({ solicitante: req.user, day, shift, hour, index, nombre });
+        const estadoHorario = await obtenerEstadoHorario(resultado.slot);
 
-        // verifico que este calendario existe
-        if(!calendar){
-            return res.status(404).json({ error: 'Calendario no funciona'}) 
-        }
+        Calendar.findOne()
+            .then((updateCalendar) => req.io.emit('updateCalendar', updateCalendar))
+            .catch(() => {});
 
-        if (!calendar[day] || !calendar[day][shift] || !calendar[day][shift][hour]) {
-            return res.status(400).json({ error: 'Dia, hora o fecha invalida' });
-        }
-
-        // Elimina la persona del horario específico
-        const updatedHour = [...calendar[day][shift][hour]];
-        updatedHour[index] = null;
-
-        // Guarda el cambio en la base de datos
-        await Calendar.updateOne({}, { $set: { [`${day}.${shift}.${hour}`]: updatedHour } });
-
-        const updateCalendar = await Calendar.findOne();
-        req.io.emit('updateCalendar', updateCalendar)
-
-        res.status(200).send('Persona Removida')
+        res.status(200).json({
+            removido: resultado.removido,
+            promovidos: resultado.promovidos,
+            ...estadoHorario,
+        });
     } catch (error) {
-        res.status(500).json({ error: error.message})
+        responderError(res, error, 'Error quitando a la persona del calendario:');
+    }
+})
+
+// Quitar una reserva (el usuario las propias; el admin cualquiera)
+router.delete('/api/calendar/reservas/:id', authenticate, async ( req, res ) => {
+    try {
+        const resultado = await quitarReserva({ solicitante: req.user, reservaId: req.params.id });
+        const estadoHorario = await obtenerEstadoHorario(resultado.slot);
+
+        res.status(200).json({ removido: resultado.removido, ...estadoHorario });
+    } catch (error) {
+        responderError(res, error, 'Error quitando la reserva:');
     }
 })
 
