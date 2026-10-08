@@ -6,6 +6,7 @@ const ScheduleRestriction = require('../models/ScheduleRestriction');
 const { debeAbonarParaInscribirse } = require('../middleware/checkPaymentRestriction');
 const { DIAS_VALIDOS, TURNOS_VALIDOS, getFullName, isSlotBlockedFor } = require('./scheduleRestrictions');
 const enviarAvisoReserva = require('./enviarAvisoReserva');
+const { estadoBloqueoBaja, claseYaTermino, registrarBaja, MINUTOS_BLOQUEO_ANTES } = require('./bajas');
 
 // ============================================================================
 // Inscripciones del calendario semanal + lista de reserva
@@ -306,8 +307,10 @@ const inscribirUsuario = async ({ usuario, day, shift, hour, aceptaReserva = fal
 // Quita a una persona del horario y hace entrar a la primera reserva.
 //  - Usuario común: sólo puede quitarse a sí mismo.
 //  - Admin: puede quitar a cualquiera (se identifica por nombre + posición).
+//  - Usuario común: desde 15 minutos antes de la clase no puede borrarse, y cada
+//    baja suma al contador mensual de avisos (salvo si es un movimiento de turno).
 // ---------------------------------------------------------------------------
-const quitarDelHorario = async ({ solicitante, day, shift, hour, index, nombre }) => {
+const quitarDelHorario = async ({ solicitante, day, shift, hour, index, nombre, esMovimiento = false }) => {
     const slot = validarHorario(day, shift, hour);
     const esAdmin = solicitante?.role === 'admin';
     const buscado = esAdmin ? normalizarNombre(nombre) : getFullName(solicitante);
@@ -318,7 +321,7 @@ const quitarDelHorario = async ({ solicitante, day, shift, hour, index, nombre }
         throw conSlot(new CalendarError(403, 'SIN_PERMISO', 'Sólo un administrador puede quitar a otras personas del horario.'));
     }
 
-    return conCandado(slot, async () => {
+    const resultado = await conCandado(slot, async () => {
         let removido = null;
         for (let intento = 0; intento < MAX_REINTENTOS && !removido; intento++) {
             const { calendarId, horario } = await leerHorario(slot);
@@ -339,6 +342,22 @@ const quitarDelHorario = async ({ solicitante, day, shift, hour, index, nombre }
                     : new CalendarError(404, 'NO_INSCRIPTO', 'No estás inscripto en este horario.'));
             }
 
+            // Muy cerca de la clase (o ya empezada): el usuario no puede dejar libre su lugar.
+            // Se valida antes de escribir, así que si se rechaza no se modifica nada.
+            if (!esAdmin) {
+                const bloqueo = estadoBloqueoBaja(slot);
+                if (bloqueo.bloqueado) {
+                    throw conSlot(new CalendarError(
+                        403,
+                        'BAJA_BLOQUEADA',
+                        `No podés ${esMovimiento ? 'mover' : 'borrarte de'} este turno porque ${bloqueo.enCurso ? 'la clase ya está en curso' : 'falta muy poco para que empiece la clase'}. ` +
+                        `Se puede hasta ${MINUTOS_BLOQUEO_ANTES} minutos antes. ` +
+                        'Te pedimos que lo hagas con más anticipación o que asistas: hay personas que quieren ocupar ese lugar.',
+                        { enCurso: bloqueo.enCurso, minutosParaInicio: bloqueo.minutosParaInicio }
+                    ));
+                }
+            }
+
             const nuevo = [...horario];
             nuevo[objetivo] = null;
             if (await reemplazarHorario(calendarId, slot, horario, nuevo)) removido = horario[objetivo];
@@ -353,6 +372,14 @@ const quitarDelHorario = async ({ solicitante, day, shift, hour, index, nombre }
 
         return { removido, promovidos: promovidas.map((reserva) => reserva.nombre), slot };
     });
+
+    // Contador mensual de bajas (sólo avisos). Se registra una vez concretada la baja y
+    // fuera del candado del horario; si falla devuelve null y la baja igual queda hecha.
+    // Los movimientos de turno no cuentan (la persona sigue entrenando esa semana) ni las bajas
+    // de clases que ya terminaron (no liberan lugar para nadie).
+    if (!esAdmin && !esMovimiento && !claseYaTermino(slot)) resultado.bajas = await registrarBaja(solicitante._id);
+
+    return resultado;
 };
 
 // ---------------------------------------------------------------------------

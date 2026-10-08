@@ -130,7 +130,9 @@ router.get('/api/calendar', async ( req, res ) => {
 router.get('/api/calendar/reservas', async ( req, res ) => {
     try {
         const reservas = await listarTodasLasReservas();
-        res.json({ maxReservas: MAX_RESERVAS, reservas });
+        // "ahora" (hora del servidor, en ms) permite al frontend saber con precisión si un
+        // turno está muy cerca sin depender del reloj del celular
+        res.json({ maxReservas: MAX_RESERVAS, reservas, ahora: Date.now() });
     } catch (error) {
         responderError(res, error, 'Error listando las reservas:');
     }
@@ -164,10 +166,21 @@ router.put('/api/calendar', authenticate, checkPaymentRestriction, checkSchedule
 // Quitar a una persona de un horario (sin restricción de pago — pueden cancelar aunque adeuden).
 // El usuario sólo puede quitarse a sí mismo; el admin puede quitar a cualquiera.
 // Si había reservas, entra automáticamente la primera y se le avisa por mail.
+// Los usuarios no pueden borrarse desde 15 minutos antes de la clase, y cada baja suma al
+// contador mensual de avisos ("bajas" en la respuesta). "esMovimiento" indica que la baja
+// es parte de mover el turno a otro horario: el bloqueo aplica igual pero no suma al contador.
 router.put('/api/calendar/remove', authenticate, async ( req, res ) => {
-    const { day, shift, hour, index, nombre } = req.body || {};
+    const { day, shift, hour, index, nombre, esMovimiento } = req.body || {};
     try {
-        const resultado = await quitarDelHorario({ solicitante: req.user, day, shift, hour, index, nombre });
+        const resultado = await quitarDelHorario({
+            solicitante: req.user,
+            day,
+            shift,
+            hour,
+            index,
+            nombre,
+            esMovimiento: esMovimiento === true,
+        });
         const estadoHorario = await obtenerEstadoHorario(resultado.slot);
 
         Calendar.findOne()
@@ -177,6 +190,7 @@ router.put('/api/calendar/remove', authenticate, async ( req, res ) => {
         res.status(200).json({
             removido: resultado.removido,
             promovidos: resultado.promovidos,
+            bajas: resultado.bajas || null,
             ...estadoHorario,
         });
     } catch (error) {

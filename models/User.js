@@ -81,6 +81,14 @@ const UserSchema = new mongoose.Schema({
     formularioFBICompletado: {
         type: Boolean,
         default: false
+    },
+    // Bajas voluntarias de turnos del mes en curso. Sólo sirve para mostrar avisos
+    // (no bloquea nada). "periodo" es el mes en hora argentina ('2026-10'): cuando
+    // cambia el mes el contador arranca de cero, sin necesidad de ningún cron.
+    // Sin valores por defecto a propósito: los usuarios existentes quedan intactos.
+    bajasMensuales: {
+        periodo: { type: String },
+        cantidad: { type: Number }
     }
 },
 {

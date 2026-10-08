@@ -98,7 +98,7 @@ const armarMail = ({ nombre, day, shift, hour, urlCalendario }) => {
           <tr>
             <td style="padding:16px 28px 30px;">
               <p style="margin:0;color:#718096;font-size:13px;line-height:1.6;">
-                Si al final no podés ir, entrá a la app y liberá tu lugar para que lo aproveche otra persona que esté esperando.
+                Si al final no podés ir, entrá a la app y liberá tu lugar (se puede hasta 15 minutos antes de la clase) para que lo aproveche otra persona que esté esperando.
               </p>
             </td>
           </tr>
