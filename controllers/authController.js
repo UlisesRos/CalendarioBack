@@ -133,7 +133,8 @@ const getUser = async (req, res) => {
 //Obtener todos los usuarios
 const getUsers = async (req, res) => {
     try {
-        const users = await User.find()
+        // Nunca se devuelven los hashes de contraseña
+        const users = await User.find().select('-userpassword -userpaswordc')
         res.json(users)
     } catch (error) {
         console.error(error);

@@ -1,6 +1,7 @@
 const express = require('express');
 const { register, login, getUser, getUsers, deleteUser, updateUser, forgotPassword, resetPassword } = require('../controllers/authController')
 const authenticate = require('../middleware/authenticate');
+const isAdmin = require('../middleware/isAdmin');
 
 const router = express.Router()
 
@@ -14,14 +15,14 @@ router.post('/login', login);
 // Mostrar el usuario Registrado
 router.get('/user', authenticate, getUser)
 
-// Mostrar todos los usuarios
-router.get('/users', authenticate, getUsers)
+// Mostrar todos los usuarios (sólo admin)
+router.get('/users', authenticate, isAdmin, getUsers)
 
-// Eliminar usuario
-router.delete('/userdelete/:id', deleteUser)
+// Eliminar usuario (sólo admin)
+router.delete('/userdelete/:id', authenticate, isAdmin, deleteUser)
 
-// Actualizar usuario
-router.put('/userupdate/:id', updateUser)
+// Actualizar usuario (sólo admin)
+router.put('/userupdate/:id', authenticate, isAdmin, updateUser)
 
 // Restablecer contraseña
 router.post('/forgot-password', forgotPassword);
