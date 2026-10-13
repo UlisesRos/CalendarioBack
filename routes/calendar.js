@@ -140,8 +140,11 @@ router.get('/api/calendar/reservas', async ( req, res ) => {
 
 // Inscribir al usuario logueado en un horario.
 // Si está completo y el usuario lo aceptó (aceptaReserva: true) queda en la lista de reserva.
+// Los usuarios sólo pueden anotarse en un horario por día (409 UN_HORARIO_POR_DIA).
+// "moviendoDesde" ({ shift, hour } del mismo día) indica un cambio de turno: el servidor
+// libera ese horario una vez confirmado el nuevo y lo informa en "movimiento".
 router.put('/api/calendar', authenticate, checkPaymentRestriction, checkScheduleRestriction, async ( req, res ) => {
-    const { day, shift, hour, aceptaReserva } = req.body || {};
+    const { day, shift, hour, aceptaReserva, moviendoDesde } = req.body || {};
     try {
         const resultado = await inscribirUsuario({
             usuario: req.user,
@@ -149,13 +152,31 @@ router.put('/api/calendar', authenticate, checkPaymentRestriction, checkSchedule
             shift,
             hour,
             aceptaReserva: aceptaReserva === true,
+            moviendoDesde: moviendoDesde || null,
         });
         const estadoHorario = await obtenerEstadoHorario(resultado.slot);
+
+        let movimiento;
+        if (resultado.movimiento) {
+            movimiento = { ...resultado.movimiento };
+            if (movimiento.liberado) {
+                try {
+                    Object.assign(movimiento, await obtenerEstadoHorario(movimiento));
+                } catch {
+                    // Sin estado del origen: el frontend recarga el calendario
+                }
+                Calendar.findOne()
+                    .then((updateCalendar) => req.io.emit('updateCalendar', updateCalendar))
+                    .catch(() => {});
+            }
+        }
 
         res.status(200).json({
             estado: resultado.estado,
             posicion: resultado.posicion,
             maxReservas: MAX_RESERVAS,
+            ...(resultado.reservasDescartadas ? { reservasDescartadas: resultado.reservasDescartadas } : {}),
+            ...(movimiento ? { movimiento } : {}),
             ...estadoHorario,
         });
     } catch (error) {

@@ -53,8 +53,7 @@ const claveHorario = ({ day, shift, hour }) => `${day}.${shift}.${hour}`;
 // ---------------------------------------------------------------------------
 const colasPorHorario = new Map();
 
-const conCandado = (slot, operacion) => {
-    const clave = claveHorario(slot);
+const conCandadoClave = (clave, operacion) => {
     const anterior = colasPorHorario.get(clave) || Promise.resolve();
     const resultado = anterior.then(operacion);
     const cola = resultado.catch(() => {});
@@ -64,6 +63,12 @@ const conCandado = (slot, operacion) => {
     });
     return resultado;
 };
+
+const conCandado = (slot, operacion) => conCandadoClave(claveHorario(slot), operacion);
+
+// Las inscripciones de una misma persona también van de a una: así dos pedidos
+// simultáneos a horarios distintos del mismo día no pueden pasar los dos.
+const conCandadoDeUsuario = (usuarioId, operacion) => conCandadoClave(`usuario:${usuarioId}`, operacion);
 
 const leerHorario = async (slot) => {
     const doc = await Calendar.collection.findOne({}, { projection: { [rutaHorario(slot)]: 1 } });
@@ -86,7 +91,37 @@ const reemplazarHorario = async (calendarId, slot, anterior, nuevo) => {
     return matchedCount === 1;
 };
 
-const formatearReserva = (reserva) => ({ id: String(reserva._id), nombre: reserva.nombre });
+// ---------------------------------------------------------------------------
+// Un solo horario por día: busca otro horario del mismo día en el que la persona
+// ya esté anotada (confirmada). Las listas de reserva no cuentan. `excluir` son
+// horarios a ignorar (el propio, o el de origen cuando se está moviendo el turno).
+// Devuelve { shift, hour } o null.
+// ---------------------------------------------------------------------------
+const buscarOtroHorarioDelDia = async (day, nombre, excluir = []) => {
+    if (!nombre) return null;
+    const doc = await Calendar.collection.findOne({}, { projection: { [day]: 1 } });
+    const turnos = doc?.[day] || {};
+    const ignorar = new Set(excluir.map(({ shift, hour }) => claveHorario({ day, shift, hour: String(hour) })));
+
+    for (const shift of TURNOS_VALIDOS) {
+        for (const [hour, horario] of Object.entries(turnos[shift] || {})) {
+            if (ignorar.has(claveHorario({ day, shift, hour }))) continue;
+            if (Array.isArray(horario) && horario.some((persona) => normalizarNombre(persona) === nombre)) {
+                return { shift, hour };
+            }
+        }
+    }
+    return null;
+};
+
+const errorUnHorarioPorDia = (day, otro) => new CalendarError(
+    409,
+    'UN_HORARIO_POR_DIA',
+    `Ya estás anotado el ${day} a las ${otro.hour}:00 hs. No podés anotarte en más de un horario en el mismo día.`,
+    { horarioExistente: { day, shift: otro.shift, hour: otro.hour } }
+);
+
+const formatearReserva =(reserva) => ({ id: String(reserva._id), nombre: reserva.nombre });
 
 const listarReservasDeHorario = async (slot) => {
     const reservas = await Reserva.find(filtroHorario(slot)).sort({ createdAt: 1, _id: 1 }).lean();
@@ -140,12 +175,18 @@ const puedeOcuparElLugar = async (reserva) => {
         User.findById(reserva.user).select('role pago').lean(),
         ScheduleRestriction.findOne({ user: reserva.user }).lean(),
     ]);
+    // Si mientras esperaba se anotó en otro horario del mismo día, no puede tener los dos
+    const otroHorario = usuario && usuario.role !== 'admin'
+        ? await buscarOtroHorarioDelDia(reserva.day, reserva.nombre, [reserva])
+        : null;
 
     let motivo = null;
     if (!usuario) motivo = 'el usuario ya no existe';
     else if (debeAbonarParaInscribirse(usuario)) motivo = 'tiene la cuota impaga';
     else if (usuario.role !== 'admin' && isSlotBlockedFor(restriccion, reserva.day, reserva.shift, reserva.hour)) {
         motivo = 'tiene ese horario restringido';
+    } else if (otroHorario) {
+        motivo = `ya está anotado ese día a las ${otroHorario.hour}:00 hs`;
     }
 
     if (motivo) {
@@ -221,14 +262,82 @@ const notificarPromociones = (promovidas, { excluirUsuarioId } = {}) => {
 // ---------------------------------------------------------------------------
 // Inscribe al usuario en el horario. Si está completo y el usuario aceptó,
 // lo anota en la lista de reserva.
+//  - Usuario común: un solo horario por día (UN_HORARIO_POR_DIA). Al confirmarse
+//    se descartan sus reservas en otros horarios de ese día, que ya no podría usar.
+//  - moviendoDesde { shift, hour }: es un cambio de turno dentro del mismo día. El
+//    horario de origen no cuenta para la regla y, una vez confirmado el destino,
+//    el servidor libera el origen (resultado.movimiento).
 // ---------------------------------------------------------------------------
-const inscribirUsuario = async ({ usuario, day, shift, hour, aceptaReserva = false }) => {
+const inscribirUsuario = async ({ usuario, day, shift, hour, aceptaReserva = false, moviendoDesde = null }) => {
     const slot = validarHorario(day, shift, hour);
     const nombre = getFullName(usuario);
     if (!nombre) throw new CalendarError(400, 'USUARIO_SIN_NOMBRE', 'Tu usuario no tiene nombre cargado.');
 
+    const esAdmin = usuario?.role === 'admin';
     const conSlot = (error) => Object.assign(error, { slot });
 
+    let origen = null;
+    if (moviendoDesde && typeof moviendoDesde === 'object') {
+        origen = validarHorario(slot.day, moviendoDesde.shift, moviendoDesde.hour);
+        if (claveHorario(origen) === claveHorario(slot)) origen = null;
+    }
+
+    return conCandadoDeUsuario(usuario._id, async () => {
+        if (origen && !esAdmin) {
+            // Mover deja libre el origen: si la clase está muy cerca no se puede, y se
+            // avisa antes de anotarlo en el destino para no dejarlo en dos horarios
+            const bloqueo = estadoBloqueoBaja(origen);
+            if (bloqueo.bloqueado) {
+                throw conSlot(new CalendarError(
+                    403,
+                    'BAJA_BLOQUEADA',
+                    `No podés mover este turno porque ${bloqueo.enCurso ? 'la clase ya está en curso' : 'falta muy poco para que empiece la clase'}. ` +
+                    `Se puede hasta ${MINUTOS_BLOQUEO_ANTES} minutos antes.`,
+                    { enCurso: bloqueo.enCurso, minutosParaInicio: bloqueo.minutosParaInicio, hora: origen.hour }
+                ));
+            }
+        }
+
+        const resultado = await inscribirConCandadoDeHorario({
+            usuario, slot, nombre, aceptaReserva, conSlot,
+            controlarDia: !esAdmin,
+            excluir: origen ? [origen] : [],
+        });
+
+        if (resultado.estado === 'confirmado' && !esAdmin) {
+            try {
+                const { deletedCount } = await Reserva.deleteMany({
+                    day: slot.day,
+                    user: usuario._id,
+                    $nor: [{ shift: slot.shift, hour: slot.hour }],
+                });
+                if (deletedCount) resultado.reservasDescartadas = deletedCount;
+            } catch (error) {
+                // No es grave: si llegara a promoverse, la regla del día la descarta igual
+                console.error('Error descartando reservas del mismo día:', error?.message || error);
+            }
+        }
+
+        if (origen && resultado.estado === 'confirmado') {
+            try {
+                const quitado = await quitarDelHorario({
+                    solicitante: usuario,
+                    ...origen,
+                    nombre,
+                    esMovimiento: true,
+                });
+                resultado.movimiento = { liberado: true, ...origen, promovidos: quitado.promovidos };
+            } catch (error) {
+                // El destino ya quedó confirmado: el frontend intenta liberar el origen por su cuenta
+                resultado.movimiento = { liberado: false, ...origen, code: error?.code || null };
+            }
+        }
+
+        return resultado;
+    });
+};
+
+const inscribirConCandadoDeHorario = ({ usuario, slot, nombre, aceptaReserva, conSlot, controlarDia, excluir }) => {
     return conCandado(slot, async () => {
         // Si quedaron lugares libres con gente esperando, las reservas entran primero
         const promovidasPrevias = await promoverSinCandado(slot);
@@ -242,6 +351,12 @@ const inscribirUsuario = async ({ usuario, day, shift, hour, aceptaReserva = fal
 
             if (horario.some((persona) => normalizarNombre(persona) === nombre)) {
                 throw conSlot(new CalendarError(409, 'YA_INSCRIPTO', 'Ya estás inscripto en este horario.'));
+            }
+
+            // Un solo horario por día (vale también para anotarse en la reserva)
+            if (controlarDia) {
+                const otro = await buscarOtroHorarioDelDia(slot.day, nombre, [slot, ...excluir]);
+                if (otro) throw conSlot(errorUnHorarioPorDia(slot.day, otro));
             }
 
             const libre = horario.indexOf(null);
